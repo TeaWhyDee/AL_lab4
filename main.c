@@ -224,13 +224,13 @@ static ssize_t mychardev_read(struct file *file, char __user *buf, size_t count,
 
 static ssize_t mychardev_write(struct file *file, const char __user *buf,
                                size_t count, loff_t *offset) {
-    size_t maxdatalen = 1024, ncopied; // Arbitrary limit for kmalloc not to kill my system.
+    size_t datalen = 1024, ncopied; // Arbitrary limit for kmalloc not to kill my system.
     printk("Writing device: %d\n", MINOR(file->f_path.dentry->d_inode->i_rdev));
 
-    if (count < maxdatalen) {
-        maxdatalen = count;
+    if (count < datalen) {
+        datalen = count;
     }
-    int n_to_push = (maxdatalen - 1) / 4 + 1; // Amount of 32 bit numbers to push
+    int n_to_push = (datalen - 1) / 4 + 1; // Amount of 32 bit numbers to push
     uint8_t *databuf = kmalloc(n_to_push * 4 * sizeof(uint8_t), GFP_KERNEL);;
     uint8_t *databuf_root = databuf;
     if (databuf == NULL) {
@@ -238,7 +238,7 @@ static ssize_t mychardev_write(struct file *file, const char __user *buf,
     }
     memset(databuf, 0, n_to_push * 4 * sizeof(uint8_t));
 
-    ncopied = copy_from_user(databuf, buf, maxdatalen);
+    ncopied = copy_from_user(databuf, buf, datalen);
     if (!ncopied == 0) {
         printk("Could't copy %zd bytes from the user\n", ncopied);
         kfree(databuf_root);
@@ -268,7 +268,7 @@ static ssize_t mychardev_write(struct file *file, const char __user *buf,
     }
 
     kfree(databuf_root);
-    return maxdatalen;
+    return datalen;
 }
 
 MODULE_LICENSE("GPL");
