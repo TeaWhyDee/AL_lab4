@@ -1,0 +1,24 @@
+
+user.pdf
+user
+stack.c
+Readme.md
+mychardev.o
+mychardev.mod.o
+mychardev.mod.c
+mychardev.mod
+mychardev.ko
+modules.order
+Module.symvers
+main.o
+Lab 4 Kernel Modules.pdf
+DaniilLatypov.zip
+chardev-linux-demo_bak.c
+a.out
+.mychardev.o.cmd
+.mychardev.mod.o.cmd
+.mychardev.mod.cmd
+.mychardev.ko.cmd
+.modules.order.cmd
+.Module.symvers.cmd
+.main.o.cmd
