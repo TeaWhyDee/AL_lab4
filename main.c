@@ -232,6 +232,7 @@ static ssize_t mychardev_write(struct file *file, const char __user *buf,
     }
     int n_to_push = (maxdatalen - 1) / 4 + 1; // Amount of 32 bit numbers to push
     uint8_t *databuf = kmalloc(n_to_push * 4 * sizeof(uint8_t), GFP_KERNEL);;
+    uint8_t *databuf_root = databuf;
     if (databuf == NULL) {
         return -ENOSPC;
     }
@@ -240,6 +241,7 @@ static ssize_t mychardev_write(struct file *file, const char __user *buf,
     ncopied = copy_from_user(databuf, buf, maxdatalen);
     if (!ncopied == 0) {
         printk("Could't copy %zd bytes from the user\n", ncopied);
+        kfree(databuf_root);
         return -ENOSPC;
     }
     printk("Data from the user: %s\n", databuf);
@@ -258,12 +260,15 @@ static ssize_t mychardev_write(struct file *file, const char __user *buf,
         }
         databuf+=4;
     }
+
+    size_t ret = count;
     if (!partial_success) {
         printk("Failed to push data onto stack");
-        return -ENOSPC;
+        ret = -ENOSPC;
     }
 
-    return count;
+    kfree(databuf_root);
+    return maxdatalen;
 }
 
 MODULE_LICENSE("GPL");
