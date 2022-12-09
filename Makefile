@@ -1,4 +1,4 @@
-BINARY      := mychardev
+BINARY      := mychardevusb
 KERNEL      := /lib/modules/$(shell uname -r)/build
 ARCH        := x86
 C_FLAGS     := -Wall
@@ -11,9 +11,9 @@ ccflags-y += $(C_FLAGS)
 
 obj-m += $(BINARY).o
 
-mychardev-y := $(OBJECTS)
+mychardevusb-y := $(OBJECTS)
 
-mychardev.ko:
+mychardevusb.ko:
 	make -C $(KERNEL) M=$(KMOD_DIR) modules
 
 install:
