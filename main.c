@@ -249,19 +249,23 @@ static struct usb_device_id usb_table [] = {
     { }
 };
 
+int device_active;
+
 static int usb_probe(struct usb_interface *interface, const struct usb_device_id *id) {
     // printk(KERN_INFO "SECRET STACK UNLOCKED\n");
-    int err, i;
-    dev_t dev;
-    mutex_init(&stack_mutex);
-
-    nodePtr = kmalloc(sizeof(Stack), GFP_KERNEL);
     if (!nodePtr) {
-		printk(KERN_ERR "MYCHARDEV: no memory for stack\n");
-		return 1;
-	}
-    nodePtr->size = 4;
-    nodePtr->items = 0;
+        mutex_init(&stack_mutex);
+        nodePtr = kmalloc(sizeof(Stack), GFP_KERNEL);
+        if (!nodePtr) {
+            printk(KERN_ERR "MYCHARDEV: no memory for stack\n");
+            return 1;
+        }
+        nodePtr->size = 4;
+        nodePtr->items = 0;
+    }
+
+    int err;
+    dev_t dev;
 
     err = alloc_chrdev_region(&dev, 0, MAX_DEV, "myusbchardev");
     dev_major = MAJOR(dev);
@@ -272,17 +276,27 @@ static int usb_probe(struct usb_interface *interface, const struct usb_device_id
     mychardev_data[0].cdev.owner = THIS_MODULE;
     cdev_add(&mychardev_data[0].cdev, MKDEV(dev_major, 0), 1);
     device_create(mychardev_class, NULL, MKDEV(dev_major, 0), NULL, "myusbchardev-0");
+    device_active = 1;
     printk(KERN_ERR "MYCHARDEV: Successfully loaded\n");
     return 0;
 }
 
-static void usb_disconnect(struct usb_interface *interface) {
+static void chardev_destroy(void) {
+    if (device_active == 0) {
+        return;
+    }
     device_destroy(mychardev_class, MKDEV(dev_major, 0));
     class_unregister(mychardev_class);
     class_destroy(mychardev_class);
     unregister_chrdev_region(MKDEV(dev_major, 0), MINORMASK);
     // printk(KERN_INFO "SECRET STACK HIDDEN\n");
     printk(KERN_INFO "MYCHARDEV: Successfully unloaded\n");
+    device_active = 0;
+    return;
+}
+
+static void usb_disconnect(struct usb_interface *interface) {
+    chardev_destroy();
     return;
 }
 
@@ -309,6 +323,7 @@ static int __init mychardev_init(void) {
 
 static void __exit mychardev_exit(void) {
     // DESTROY DEVICE
+    chardev_destroy();
     usb_deregister(&usb_driver);
 }
 
