@@ -252,16 +252,16 @@ static struct usb_device_id usb_table [] = {
 int device_active;
 
 static int usb_probe(struct usb_interface *interface, const struct usb_device_id *id) {
-    // printk(KERN_INFO "SECRET STACK UNLOCKED\n");
     if (!nodePtr) {
         mutex_init(&stack_mutex);
         nodePtr = kmalloc(sizeof(Stack), GFP_KERNEL);
         if (!nodePtr) {
             printk(KERN_ERR "MYCHARDEV: no memory for stack\n");
-            return 1;
+            return -ENOSPC;
         }
         nodePtr->size = 4;
         nodePtr->items = 0;
+        printk(KERN_INFO "MYCHARDEV: Initialized new stack\n");
     }
 
     int err;
@@ -277,7 +277,7 @@ static int usb_probe(struct usb_interface *interface, const struct usb_device_id
     cdev_add(&mychardev_data[0].cdev, MKDEV(dev_major, 0), 1);
     device_create(mychardev_class, NULL, MKDEV(dev_major, 0), NULL, "myusbchardev-0");
     device_active = 1;
-    printk(KERN_ERR "MYCHARDEV: Successfully loaded\n");
+    printk(KERN_INFO "MYCHARDEV: Successfully loaded chardev\n");
     return 0;
 }
 
@@ -289,8 +289,7 @@ static void chardev_destroy(void) {
     class_unregister(mychardev_class);
     class_destroy(mychardev_class);
     unregister_chrdev_region(MKDEV(dev_major, 0), MINORMASK);
-    // printk(KERN_INFO "SECRET STACK HIDDEN\n");
-    printk(KERN_INFO "MYCHARDEV: Successfully unloaded\n");
+    printk(KERN_INFO "MYCHARDEV: Successfully destroy chardev\n");
     device_active = 0;
     return;
 }
@@ -316,13 +315,12 @@ static int __init mychardev_init(void) {
     int ret = usb_register(&usb_driver);
     if (ret) {
 		printk(KERN_ERR "Error registering USB Device\n");
-        return 2;
+        return -EUNATCH;
     }
     return 0;
 }
 
 static void __exit mychardev_exit(void) {
-    // DESTROY DEVICE
     chardev_destroy();
     usb_deregister(&usb_driver);
 }
