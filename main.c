@@ -12,35 +12,6 @@
 #include <linux/string.h>
 
 //
-// USB
-//
-#include <linux/usb.h>
-
-static struct usb_device_id usb_table [] = {
-    { USB_DEVICE(0x0951, 0x1653) }, // USB stick
-    { }
-};
-
-static int usb_probe(struct usb_interface *interface, const struct usb_device_id *id) {
-    printk(KERN_INFO "SECRET STACK UNLOCKED\n");
-    return 0;
-}
-
-static void usb_disconnect(struct usb_interface *interface) {
-    printk(KERN_INFO "SECRET STACK HIDDEN\n");
-    return;
-}
-
-MODULE_DEVICE_TABLE(usb, usb_table);
-
-static struct usb_driver usb_driver = {
-    .name =        "usb_key",
-    .id_table =    usb_table,
-    .probe =       usb_probe,
-    .disconnect =  usb_disconnect,
-};
-
-//
 // STACK
 //
 struct stack {
@@ -144,7 +115,11 @@ static ssize_t mychardev_read(struct file *file, char __user *buf, size_t count,
 static ssize_t mychardev_write(struct file *file, const char __user *buf,
                                size_t count, loff_t *offset);
 
+Stack *nodePtr;
+
+//
 // CHARDEV IMPL
+//
 static const struct file_operations mychardev_fops = {
     .owner = THIS_MODULE,
     .open = mychardev_open,
@@ -164,48 +139,6 @@ static struct mychar_device_data mychardev_data[MAX_DEV];
 static int mychardev_uevent(struct device *dev, struct kobj_uevent_env *env) {
     add_uevent_var(env, "DEVMODE=%#o", 0666);
     return 0;
-}
-
-Stack *nodePtr;
-
-static int __init mychardev_init(void) {
-    int ret = usb_register(&usb_driver);
-    if (ret) {
-		printk(KERN_ERR "Error registering USB Device\n");
-        return 2;
-    }
-    int err, i;
-    dev_t dev;
-    mutex_init(&stack_mutex);
-
-    nodePtr = kmalloc(sizeof(Stack), GFP_KERNEL);
-    if (!nodePtr) {
-		printk(KERN_ERR "MYCHARDEV: no memory for stack\n");
-		return 1;
-	}
-    nodePtr->size = 4;
-    nodePtr->items = 0;
-
-    err = alloc_chrdev_region(&dev, 0, MAX_DEV, "myusbchardev");
-    dev_major = MAJOR(dev);
-    mychardev_class = class_create(THIS_MODULE, "myusbchardev");
-    mychardev_class->dev_uevent = mychardev_uevent;
-
-    cdev_init(&mychardev_data[0].cdev, &mychardev_fops);
-    mychardev_data[0].cdev.owner = THIS_MODULE;
-    cdev_add(&mychardev_data[0].cdev, MKDEV(dev_major, 0), 1);
-    device_create(mychardev_class, NULL, MKDEV(dev_major, 0), NULL, "myusbchardev-0");
-    printk(KERN_ERR "MYCHARDEV: Successfully loaded\n");
-    return 0;
-}
-
-static void __exit mychardev_exit(void) {
-    device_destroy(mychardev_class, MKDEV(dev_major, 0));
-    class_unregister(mychardev_class);
-    class_destroy(mychardev_class);
-    unregister_chrdev_region(MKDEV(dev_major, 0), MINORMASK);
-    printk(KERN_ERR "MYCHARDEV: Successfully unloaded\n");
-    usb_deregister(&usb_driver);
 }
 
 static int mychardev_open(struct inode *inode, struct file *file) {
@@ -305,6 +238,80 @@ static ssize_t mychardev_write(struct file *file, const char __user *buf,
     kfree(databuf_root);
     return datalen;
 }
+
+//
+// USB
+//
+#include <linux/usb.h>
+
+static struct usb_device_id usb_table [] = {
+    { USB_DEVICE(0x0951, 0x1653) }, // USB stick
+    { }
+};
+
+static int usb_probe(struct usb_interface *interface, const struct usb_device_id *id) {
+    // printk(KERN_INFO "SECRET STACK UNLOCKED\n");
+    int err, i;
+    dev_t dev;
+    mutex_init(&stack_mutex);
+
+    nodePtr = kmalloc(sizeof(Stack), GFP_KERNEL);
+    if (!nodePtr) {
+		printk(KERN_ERR "MYCHARDEV: no memory for stack\n");
+		return 1;
+	}
+    nodePtr->size = 4;
+    nodePtr->items = 0;
+
+    err = alloc_chrdev_region(&dev, 0, MAX_DEV, "myusbchardev");
+    dev_major = MAJOR(dev);
+    mychardev_class = class_create(THIS_MODULE, "myusbchardev");
+    mychardev_class->dev_uevent = mychardev_uevent;
+
+    cdev_init(&mychardev_data[0].cdev, &mychardev_fops);
+    mychardev_data[0].cdev.owner = THIS_MODULE;
+    cdev_add(&mychardev_data[0].cdev, MKDEV(dev_major, 0), 1);
+    device_create(mychardev_class, NULL, MKDEV(dev_major, 0), NULL, "myusbchardev-0");
+    printk(KERN_ERR "MYCHARDEV: Successfully loaded\n");
+    return 0;
+}
+
+static void usb_disconnect(struct usb_interface *interface) {
+    device_destroy(mychardev_class, MKDEV(dev_major, 0));
+    class_unregister(mychardev_class);
+    class_destroy(mychardev_class);
+    unregister_chrdev_region(MKDEV(dev_major, 0), MINORMASK);
+    // printk(KERN_INFO "SECRET STACK HIDDEN\n");
+    printk(KERN_INFO "MYCHARDEV: Successfully unloaded\n");
+    return;
+}
+
+MODULE_DEVICE_TABLE(usb, usb_table);
+
+static struct usb_driver usb_driver = {
+    .name =        "usb_key",
+    .id_table =    usb_table,
+    .probe =       usb_probe,
+    .disconnect =  usb_disconnect,
+};
+
+//
+// MODULE 
+//
+static int __init mychardev_init(void) {
+    int ret = usb_register(&usb_driver);
+    if (ret) {
+		printk(KERN_ERR "Error registering USB Device\n");
+        return 2;
+    }
+    return 0;
+}
+
+static void __exit mychardev_exit(void) {
+    // DESTROY DEVICE
+    usb_deregister(&usb_driver);
+}
+
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniil Latypov <d.latypov@innopolis.university>");
